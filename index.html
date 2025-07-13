@@ -39,6 +39,8 @@
             color: red;
             display: none;
             margin-top: 10px;
+            max-width: 800px;
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -53,6 +55,14 @@
     <!-- WebTorrent CDN -->
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
     <script>
+        // Check if WebTorrent is supported
+        if (!WebTorrent.WEBRTC_SUPPORT) {
+            document.getElementById('error').innerText = 'WebTorrent is not supported in this browser. Use Chrome or Firefox.';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('status').innerText = '';
+            throw new Error('WebTorrent not supported');
+        }
+
         // Initialize WebTorrent client
         const client = new WebTorrent();
 
@@ -60,15 +70,24 @@
         const magnetURI = 'magnet:?xt=urn:btih:3C474B571734EB2BEE298C0D77F0CAFC5352DDD7&dn=The+Death+of+Superman+%282018%29+%5BWEBRip%5D+%5B720p%5D+%5BYTS%5D+%5BYIFY%5D&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969%2Fannounce&tr=udp%3A%2F%2F9.rarbg.com%3A2710%2Fannounce&tr=udp%3A%2F%2Fp4p.arenabg.com%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.internetwarriors.net%3A1337&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=http%3A%2F%2Ftracker.openbittorrent.com%3A80%2Fannounce&tr=udp%3A%2F%2Fopentracker.i2p.rocks%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.internetwarriors.net%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969%2Fannounce&tr=udp%3A%2F%2Fcoppersurfer.tk%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.zer0day.to%3A1337%2Fannounce';
 
         // Stream the torrent
-        client.add(magnetURI, (torrent) => {
+        client.add(magnetURI, {
+            announce: [
+                'udp://tracker.coppersurfer.tk:6969/announce',
+                'udp://tracker.opentrackr.org:1337/announce',
+                'udp://tracker.leechers-paradise.org:6969/announce',
+                'udp://tracker.internetwarriors.net:1337/announce',
+                'http://tracker.openbittorrent.com:80/announce'
+            ]
+        }, (torrent) => {
             // Update status
             document.getElementById('status').innerText = `Connected! Peers: ${torrent.numPeers}`;
 
             // Find video file (e.g., .mp4)
-            const videoFile = torrent.files.find(file => file.name.endsWith('.mp4'));
+            const videoFile = torrent.files.find(file => file.name.endsWith('.mp4') || file.name.endsWith('.mkv'));
             if (!videoFile) {
-                document.getElementById('error').innerText = 'No video file found in torrent';
+                document.getElementById('error').innerText = 'No video file (.mp4/.mkv) found in torrent';
                 document.getElementById('error').style.display = 'block';
+                document.getElementById('status').innerText = '';
                 return;
             }
 
@@ -77,6 +96,7 @@
                 if (err) {
                     document.getElementById('error').innerText = 'Error streaming: ' + err.message;
                     document.getElementById('error').style.display = 'block';
+                    document.getElementById('status').innerText = '';
                     return;
                 }
                 document.getElementById('status').innerText = 'Streaming started!';
@@ -86,9 +106,17 @@
             torrent.on('download', () => {
                 document.getElementById('status').innerText = `Streaming... ${Math.round(torrent.progress * 100)}% downloaded, Peers: ${torrent.numPeers}`;
             });
+
+            // Error handling
+            torrent.on('error', (err) => {
+                document.getElementById('error').innerText = 'Torrent error: ' + err.message;
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('status').innerText = '';
+            });
         }, (err) => {
             document.getElementById('error').innerText = 'Error loading torrent: ' + err.message;
             document.getElementById('error').style.display = 'block';
+            document.getElementById('status').innerText = '';
         });
     </script>
 </body>
